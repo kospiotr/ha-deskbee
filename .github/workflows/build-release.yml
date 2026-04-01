@@ -1,0 +1,28 @@
+name: Build Deskbee Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Package integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release archive
+        run: |
+          mkdir -p dist
+          cp -r custom_components/deskbee dist/deskbee
+          cd dist
+          zip -r deskbee.zip deskbee
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskbee-integration
+          path: dist/deskbee.zip
