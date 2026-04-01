@@ -29,13 +29,13 @@ jobs:
           mkdir -p dist
           cp -r custom_components/deskbee dist/deskbee
           cd dist
-          zip -r ha_deskbee.zip deskbee
+          zip -r deskbee.zip deskbee
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: deskbee-integration
-          path: dist/ha_deskbee.zip
+          path: dist/deskbee.zip
 
       - name: Set release tag
         id: vars
@@ -49,4 +49,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/ha_deskbee.zip
+            dist/deskbee.zip
