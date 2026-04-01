@@ -22,7 +22,7 @@ jobs:
         run: echo "version=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Substitute version
-        run: sed -i 's/${{ steps.version.outputs.version }}/'"$VERSION"'/g' custom_components/deskbee/manifest.json
+        run: sed -i 's/\$VERSION/${{ steps.version.outputs.version }}/g' custom_components/deskbee/manifest.json
 
       - name: Create release archive
         run: |
