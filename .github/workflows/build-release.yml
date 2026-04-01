@@ -32,7 +32,7 @@ jobs:
 
       - name: Set release tag
         id: vars
-        run: echo "tag=auto-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=v-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
