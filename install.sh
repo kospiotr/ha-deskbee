@@ -2,19 +2,14 @@
 
 set -eu
 
-# Usage:
-#   ./install.sh OWNER/REPO
-# or set GITHUB_REPO=OWNER/REPO and run without arguments.
+REPO="kospiotr/ha-deskbee"
+VERSION="${1:-${VERSION:-latest}}"
+TARGET_FOLDER="${2:-${TARGET_FOLDER:-"/config/custom_components"}}"
 
-REPO="${1:-${GITHUB_REPO:-}}"
-
-if [ -z "$REPO" ]; then
-  echo "Usage: $0 <github_owner/repo> or set GITHUB_REPO environment variable" >&2
-  exit 1
-fi
+echo "Version: $VERSION"
 
 ZIP_NAME="deskbee.zip"
-DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ZIP_NAME}"
+DOWNLOAD_URL="https://github.com/${REPO}/releases/${VERSION}/download/${ZIP_NAME}"
 
 echo "Downloading latest Deskbee release from ${DOWNLOAD_URL}..." >&2
 
@@ -34,8 +29,8 @@ if ! command -v unzip >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Unpacking Deskbee integration into $(pwd)..." >&2
-unzip -o "$TMP_ZIP" >/dev/null
+echo "Unpacking Deskbee integration into ${TARGET_FOLDER}..." >&2
+unzip -o "$TMP_ZIP" -d "$TARGET_FOLDER" >/dev/null
 
 rm -f "$TMP_ZIP"
 
