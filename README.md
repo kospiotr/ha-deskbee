@@ -62,7 +62,7 @@ Steps on the Home Assistant host:
 2. Run the installer script via `curl`:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/kospiotr/ha-deskbee/master/install.sh | bash -s -- kospiotr/ha-deskbee
+   curl -fsSL https://raw.githubusercontent.com/kospiotr/ha-deskbee/master/install.sh | bash -s -- 
    ```
 
 3. After the script finishes, a `deskbee` directory will be present in the current folder.

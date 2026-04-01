@@ -5,10 +5,10 @@ set -eu
 REPO="kospiotr/ha-deskbee"
 VERSION="${1:-${VERSION:-latest}}"
 TARGET_FOLDER="${2:-${TARGET_FOLDER:-"/config/custom_components"}}"
+ZIP_NAME="ha_deskbee.zip"
 
 echo "Version: $VERSION"
 
-ZIP_NAME="deskbee.zip"
 DOWNLOAD_URL="https://github.com/${REPO}/releases/${VERSION}/download/${ZIP_NAME}"
 
 echo "Downloading latest Deskbee release from ${DOWNLOAD_URL}..." >&2
