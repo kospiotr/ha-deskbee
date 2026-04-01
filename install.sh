@@ -5,7 +5,7 @@ set -eu
 REPO="kospiotr/ha-deskbee"
 VERSION="${1:-${VERSION:-latest}}"
 TARGET_FOLDER="${2:-${TARGET_FOLDER:-"/config/custom_components"}}"
-ZIP_NAME="ha_deskbee.zip"
+ZIP_NAME="deskbee.zip"
 
 echo "Version: $VERSION"
 

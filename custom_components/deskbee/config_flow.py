@@ -1,39 +1,34 @@
-from __future__ import annotations
+from typing import Optional, Dict, Any
 
-from typing import Any
-
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlow
+from homeassistant.const import CONF_ACCESS_TOKEN
 
-from .const import DOMAIN
+from custom_components.pgnig_gas_sensor.PgnigApi import PgnigApi
 
-
-DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required("name", default="Deskbee"): str,
-        vol.Required("token"): str,
-    }
-)
+AUTH_SCHEMA = vol.Schema({
+    vol.Required(CONF_ACCESS_TOKEN): cv.string,
+})
 
 
-class DeskbeeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Deskbee."""
+class DeskbeeConfigFlow(ConfigFlow, domain="deskbee"):
+    """Example config flow."""
 
-    VERSION = 1
+    async def async_step_import(self, import_config):
+        return self.async_abort(reason="one_instance_at_a_time_please")
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
-        """Handle the initial step."""
-
-        if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
-
-        # Store the provided name and token in the config entry.
-        return self.async_create_entry(
-            title=user_input["name"],
-            data={
-                "name": user_input["name"],
-                "token": user_input["token"],
-            },
+    async def async_step_user(self, user_input: Optional[Dict[str, Any]] = None):
+        errors: Dict[str, str] = {}
+        description_placeholders = {"error_info": ""}
+        if user_input is not None:
+            api = DeskbeeApi(user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+            try:
+                await self.hass.async_add_executor_job(api.login)
+                return self.async_create_entry(title="Pgnig sensor", data=user_input)
+            except Exception as e:
+                errors = {"login_failed": "verify_connection_failed"}
+                description_placeholders = {"error_info": "EBOK Login Failed"}
+        return self.async_show_form(
+            step_id="user", data_schema=AUTH_SCHEMA, errors=errors, description_placeholders=description_placeholders
         )

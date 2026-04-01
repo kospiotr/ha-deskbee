@@ -1,10 +1,14 @@
 {
   "domain": "deskbee",
   "name": "Deskbee",
-  "version": "0.0.2",
-  "documentation": "https://pkosmowski.pl",
+  "documentation": "hhttps://github.com/kospiotr/ha-deskbee",
+  "issue_tracker": "https://github.com/kospiotr/ha-deskbee/issues",
+  "dependencies": [],
+  "config_flow": true,
+  "codeowners": [
+    "@kospiotr"
+  ],
   "requirements": [],
-  "codeowners": ["@kospiotr"],
-  "integration_type": "service",
-  "iot_class": "cloud_polling"
+  "iot_class": "cloud_polling",
+  "version": "0.0.${}"
 }
