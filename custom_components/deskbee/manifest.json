@@ -1,0 +1,10 @@
+{
+  "domain": "deskbee",
+  "name": "Deskbee",
+  "version": "0.0.1",
+  "documentation": "https://example.com/ha_deskbee",
+  "requirements": [],
+  "codeowners": ["@your-github-username"],
+  "integration_type": "service",
+  "iot_class": "cloud_polling"
+}

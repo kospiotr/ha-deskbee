@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  homeassistant:
+    build: .
+    image: ha-deskbee-dev:latest
+    container_name: ha-deskbee-dev
+    ports:
+      - "8123:8123"
+    tmpfs:
+      - /config
+    volumes:
+      - ./custom_components:/config/custom_components
+      - ./config/configuration.yaml:/config/configuration.yaml
+    restart: unless-stopped
