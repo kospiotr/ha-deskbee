@@ -8,7 +8,12 @@ from homeassistant import config_entries
 from .const import DOMAIN
 
 
-DATA_SCHEMA = vol.Schema({vol.Required("name", default="Deskbee"): str})
+DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required("name", default="Deskbee"): str,
+        vol.Required("token"): str,
+    }
+)
 
 
 class DeskbeeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -24,5 +29,11 @@ class DeskbeeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
 
-        # For now we do not store any specific data besides the name.
-        return self.async_create_entry(title=user_input["name"], data={})
+        # Store the provided name and token in the config entry.
+        return self.async_create_entry(
+            title=user_input["name"],
+            data={
+                "name": user_input["name"],
+                "token": user_input["token"],
+            },
+        )

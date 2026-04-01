@@ -2,14 +2,12 @@ version: '3.8'
 
 services:
   homeassistant:
-    build: .
-    image: ha-deskbee-dev:latest
-    container_name: ha-deskbee-dev
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    container_name: ha-dev
     ports:
       - "8123:8123"
-    tmpfs:
-      - /config
     volumes:
-      - ./custom_components:/config/custom_components
+      - ./.config:/config
       - ./config/configuration.yaml:/config/configuration.yaml
+      - ./custom_components:/config/custom_components
     restart: unless-stopped
