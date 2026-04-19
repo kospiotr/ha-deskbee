@@ -86,7 +86,7 @@ class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
                 title="Deskbee: Token Expired",
                 message=(
                     "Your Deskbee access token has expired. "
-                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                    "Please update it in Settings → Integrations → Deskbee → ⋮ → Reconfigure."
                 ),
                 notification_id=_NOTIFICATION_ID,
             )
@@ -96,7 +96,7 @@ class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
                 title="Deskbee: Token Expires Today",
                 message=(
                     "Your Deskbee access token expires today. "
-                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                    "Please update it in Settings → Integrations → Deskbee → ⋮ → Reconfigure."
                 ),
                 notification_id=_NOTIFICATION_ID,
             )
@@ -106,7 +106,7 @@ class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
                 title="Deskbee: Token Expires Tomorrow",
                 message=(
                     "Your Deskbee access token expires tomorrow. "
-                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                    "Please update it in Settings → Integrations → Deskbee → ⋮ → Reconfigure."
                 ),
                 notification_id=_NOTIFICATION_ID,
             )

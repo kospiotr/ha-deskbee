@@ -33,6 +33,25 @@ class DeskbeeConfigFlow(ConfigFlow, domain="deskbee"):
     def async_get_options_flow(config_entry: ConfigEntry) -> DeskbeeOptionsFlow:
         return DeskbeeOptionsFlow(config_entry)
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            return self.async_update_reload_and_abort(
+                entry,
+                data_updates=user_input,
+            )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_DOMAIN, default=entry.data.get(CONF_DOMAIN, "")): cv.string,
+                    vol.Required(CONF_ACCESS_TOKEN): cv.string,
+                }
+            ),
+        )
+
     async def async_step_import(self, import_config: dict[str, Any]) -> FlowResult:
         return self.async_abort(reason="not_supported")
 
