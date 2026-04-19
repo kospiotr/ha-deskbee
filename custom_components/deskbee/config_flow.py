@@ -69,20 +69,50 @@ class DeskbeeConfigFlow(ConfigFlow, domain="deskbee"):
 
 
 class DeskbeeOptionsFlow(OptionsFlow):
-    """Handle Deskbee options (predefined booking templates)."""
+    """Options flow presenting booking templates as a navigable tree.
+
+    Navigation:
+        init ──► add_booking  ──► (save)
+             └─► select_booking ──► booking_menu ──► edit_booking ──► (save)
+                                                └──► delete_booking ──► (save)
+    """
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         self._bookings: list[dict] = list(
             config_entry.options.get(CONF_BOOKINGS, [])
         )
+        self._selected: str | None = None  # name of the booking being managed
+
+    # ------------------------------------------------------------------ #
+    # Root                                                                 #
+    # ------------------------------------------------------------------ #
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """Show an overview of existing booking templates and navigation options."""
         menu_options = ["add_booking"]
         if self._bookings:
-            menu_options.append("remove_booking")
-        return self.async_show_menu(step_id="init", menu_options=menu_options)
+            menu_options.append("select_booking")
+
+        if self._bookings:
+            lines = [
+                f"• {b['name']}  ({b['start_time'][:5]}–{b['end_time'][:5]})"
+                for b in self._bookings
+            ]
+            bookings_list = "\n".join(lines)
+        else:
+            bookings_list = "No booking templates configured yet."
+
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=menu_options,
+            description_placeholders={"bookings_list": bookings_list},
+        )
+
+    # ------------------------------------------------------------------ #
+    # Add                                                                  #
+    # ------------------------------------------------------------------ #
 
     async def async_step_add_booking(
         self, user_input: dict[str, Any] | None = None
@@ -120,17 +150,20 @@ class DeskbeeOptionsFlow(OptionsFlow):
             errors=errors,
         )
 
-    async def async_step_remove_booking(
+    # ------------------------------------------------------------------ #
+    # Select → per-booking menu                                            #
+    # ------------------------------------------------------------------ #
+
+    async def async_step_select_booking(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """Let the user pick which booking template to manage."""
         if user_input is not None:
-            self._bookings = [
-                b for b in self._bookings if b["name"] != user_input["name"]
-            ]
-            return self.async_create_entry(data={CONF_BOOKINGS: self._bookings})
+            self._selected = user_input["name"]
+            return await self.async_step_booking_menu()
 
         return self.async_show_form(
-            step_id="remove_booking",
+            step_id="select_booking",
             data_schema=vol.Schema(
                 {
                     vol.Required("name"): SelectSelector(
@@ -141,3 +174,91 @@ class DeskbeeOptionsFlow(OptionsFlow):
                 }
             ),
         )
+
+    async def async_step_booking_menu(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show edit / delete options for the selected booking template."""
+        booking = self._get_selected()
+        return self.async_show_menu(
+            step_id="booking_menu",
+            menu_options=["edit_booking", "delete_booking"],
+            description_placeholders={
+                "name": booking["name"],
+                "start_time": booking["start_time"][:5],
+                "end_time": booking["end_time"][:5],
+                "place_uuids": ", ".join(booking["place_uuids"]),
+            },
+        )
+
+    # ------------------------------------------------------------------ #
+    # Edit                                                                 #
+    # ------------------------------------------------------------------ #
+
+    async def async_step_edit_booking(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        booking = self._get_selected()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            place_uuids = [
+                u.strip()
+                for u in user_input["place_uuids"].split(",")
+                if u.strip()
+            ]
+            if not place_uuids:
+                errors["place_uuids"] = "required"
+            else:
+                idx = next(
+                    i for i, b in enumerate(self._bookings) if b["name"] == self._selected
+                )
+                self._bookings[idx] = {
+                    "name": user_input["name"],
+                    "start_time": user_input["start_time"],
+                    "end_time": user_input["end_time"],
+                    "place_uuids": place_uuids,
+                }
+                return self.async_create_entry(data={CONF_BOOKINGS: self._bookings})
+
+        return self.async_show_form(
+            step_id="edit_booking",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name", default=booking["name"]): TextSelector(),
+                    vol.Required("start_time", default=booking["start_time"]): TimeSelector(),
+                    vol.Required("end_time", default=booking["end_time"]): TimeSelector(),
+                    vol.Required(
+                        "place_uuids", default=", ".join(booking["place_uuids"])
+                    ): TextSelector(),
+                }
+            ),
+            errors=errors,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Delete                                                               #
+    # ------------------------------------------------------------------ #
+
+    async def async_step_delete_booking(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirmation step — empty form acts as a single Confirm button."""
+        if user_input is not None:
+            self._bookings = [
+                b for b in self._bookings if b["name"] != self._selected
+            ]
+            return self.async_create_entry(data={CONF_BOOKINGS: self._bookings})
+
+        return self.async_show_form(
+            step_id="delete_booking",
+            data_schema=vol.Schema({}),
+            description_placeholders={"name": self._selected},
+        )
+
+    # ------------------------------------------------------------------ #
+    # Helpers                                                              #
+    # ------------------------------------------------------------------ #
+
+    def _get_selected(self) -> dict:
+        return next(b for b in self._bookings if b["name"] == self._selected)

@@ -10,21 +10,22 @@
       },
       "reconfigure": {
         "title": "Update Deskbee credentials",
+        "description": "Enter your updated Deskbee domain and access token.",
         "data": {
           "domain": "Domain",
           "access_token": "Access Token"
-        },
-        "description": "Enter your updated Deskbee domain and access token."
+        }
       }
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Manage Booking Templates",
+        "title": "Booking Templates",
+        "description": "Configured templates:\n\n{bookings_list}",
         "menu_options": {
           "add_booking": "Add booking template",
-          "remove_booking": "Remove booking template"
+          "select_booking": "Edit or delete a template"
         }
       },
       "add_booking": {
@@ -36,14 +37,38 @@
           "place_uuids": "Place UUIDs (comma-separated)"
         },
         "data_description": {
-          "place_uuids": "Enter one or more place UUIDs separated by commas. They will be tried in order until one succeeds."
+          "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
         }
       },
-      "remove_booking": {
-        "title": "Remove Booking Template",
+      "select_booking": {
+        "title": "Select Booking Template",
         "data": {
-          "name": "Booking to remove"
+          "name": "Booking template"
         }
+      },
+      "booking_menu": {
+        "title": "{name}",
+        "description": "Start: {start_time}  ·  End: {end_time}\nPlaces: {place_uuids}",
+        "menu_options": {
+          "edit_booking": "Edit",
+          "delete_booking": "Delete"
+        }
+      },
+      "edit_booking": {
+        "title": "Edit Booking Template",
+        "data": {
+          "name": "Name",
+          "start_time": "Start Time",
+          "end_time": "End Time",
+          "place_uuids": "Place UUIDs (comma-separated)"
+        },
+        "data_description": {
+          "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
+        }
+      },
+      "delete_booking": {
+        "title": "Delete Booking Template",
+        "description": "Are you sure you want to delete \"{name}\"? This will also remove its sensors and actions."
       }
     }
   }
