@@ -44,47 +44,8 @@ def _parse_place_uuids(raw: str) -> list[str]:
     return [u.strip() for u in raw.split(",") if u.strip()]
 
 
-class DeskbeeConfigFlow(ConfigFlow, domain="deskbee"):
-    """Handle a config flow for Deskbee."""
-
-    SUBENTRY_FLOWS: ClassVar[dict[str, type[ConfigSubentryFlow]]] = {
-        "booking": DeskbeeBookingSubentryFlow,
-    }
-
-    async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        entry = self._get_reconfigure_entry()
-        if user_input is not None:
-            return self.async_update_reload_and_abort(
-                entry,
-                data_updates=user_input,
-            )
-        return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_DOMAIN, default=entry.data.get(CONF_DOMAIN, "")): cv.string,
-                    vol.Required(CONF_ACCESS_TOKEN): cv.string,
-                }
-            ),
-        )
-
-    async def async_step_import(self, import_config: dict[str, Any]) -> FlowResult:
-        return self.async_abort(reason="not_supported")
-
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            return self.async_create_entry(
-                title=user_input[CONF_DOMAIN], data=user_input
-            )
-        return self.async_show_form(
-            step_id="user", data_schema=AUTH_SCHEMA, errors=errors
-        )
-
+# DeskbeeBookingSubentryFlow must be defined BEFORE DeskbeeConfigFlow
+# so that SUBENTRY_FLOWS can reference it at class-body evaluation time.
 
 class DeskbeeBookingSubentryFlow(ConfigSubentryFlow):
     """Sub-entry flow for adding and editing a single booking template.
@@ -152,4 +113,46 @@ class DeskbeeBookingSubentryFlow(ConfigSubentryFlow):
                 place_uuids=", ".join(subentry.data.get("place_uuids", [])),
             ),
             errors=errors,
+        )
+
+
+class DeskbeeConfigFlow(ConfigFlow, domain="deskbee"):
+    """Handle a config flow for Deskbee."""
+
+    SUBENTRY_FLOWS: ClassVar[dict[str, type[ConfigSubentryFlow]]] = {
+        "booking": DeskbeeBookingSubentryFlow,
+    }
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            return self.async_update_reload_and_abort(
+                entry,
+                data_updates=user_input,
+            )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_DOMAIN, default=entry.data.get(CONF_DOMAIN, "")): cv.string,
+                    vol.Required(CONF_ACCESS_TOKEN): cv.string,
+                }
+            ),
+        )
+
+    async def async_step_import(self, import_config: dict[str, Any]) -> FlowResult:
+        return self.async_abort(reason="not_supported")
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            return self.async_create_entry(
+                title=user_input[CONF_DOMAIN], data=user_input
+            )
+        return self.async_show_form(
+            step_id="user", data_schema=AUTH_SCHEMA, errors=errors
         )
