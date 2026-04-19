@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
+import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -21,6 +24,19 @@ _BOOKINGS_PARAMS = {
 }
 _APP_VERSION = "1.237.6060"
 _UPDATE_INTERVAL = timedelta(minutes=30)
+_NOTIFICATION_ID = "deskbee_token_expiry"
+
+
+def decode_jwt_expiry(token: str) -> datetime | None:
+    """Return the exp claim from a JWT as an aware UTC datetime, without verifying the signature."""
+    try:
+        payload_b64 = token.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    except Exception as err:
+        _LOGGER.error("Failed to decode JWT expiry: %s", err)
+        return None
 
 
 class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
@@ -50,9 +66,53 @@ class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
             ) as response:
                 response.raise_for_status()
                 body = await response.json()
-                return body.get("data", [])
         except Exception as err:
             raise UpdateFailed(f"Error fetching Deskbee reservations: {err}") from err
+
+        self._check_token_expiry()
+        return body.get("data", [])
+
+    def _check_token_expiry(self) -> None:
+        """Create or dismiss a persistent notification based on how soon the token expires."""
+        expiry = decode_jwt_expiry(self._token)
+        if expiry is None:
+            return
+
+        days_left = (expiry.date() - datetime.now(tz=timezone.utc).date()).days
+
+        if days_left < 0:
+            persistent_notification.async_create(
+                self.hass,
+                title="Deskbee: Token Expired",
+                message=(
+                    "Your Deskbee access token has expired. "
+                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                ),
+                notification_id=_NOTIFICATION_ID,
+            )
+        elif days_left == 0:
+            persistent_notification.async_create(
+                self.hass,
+                title="Deskbee: Token Expires Today",
+                message=(
+                    "Your Deskbee access token expires today. "
+                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                ),
+                notification_id=_NOTIFICATION_ID,
+            )
+        elif days_left == 1:
+            persistent_notification.async_create(
+                self.hass,
+                title="Deskbee: Token Expires Tomorrow",
+                message=(
+                    "Your Deskbee access token expires tomorrow. "
+                    "Please update it in Settings → Integrations → Deskbee → Configure."
+                ),
+                notification_id=_NOTIFICATION_ID,
+            )
+        else:
+            # Token is valid and not expiring soon — dismiss any previous warning.
+            persistent_notification.async_dismiss(self.hass, _NOTIFICATION_ID)
 
     async def async_create_reservation(
         self,

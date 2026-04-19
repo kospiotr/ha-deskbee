@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import base64
-import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -15,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
 from .const import CONF_BOOKINGS, CONF_DOMAIN, DOMAIN
-from .coordinator import DeskbeeCoordinator
+from .coordinator import DeskbeeCoordinator, decode_jwt_expiry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,18 +46,6 @@ async def async_setup_entry(
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-def _decode_jwt_expiry(token: str) -> datetime | None:
-    """Return the exp claim from a JWT as an aware UTC datetime."""
-    try:
-        payload_b64 = token.split(".")[1]
-        payload_b64 += "=" * (-len(payload_b64) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
-        return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-    except Exception as err:
-        _LOGGER.error("Failed to decode JWT expiry: %s", err)
-        return None
-
 
 def _reservation_local_date(r: dict) -> date:
     """Parse the local date from a reservation's start_date field."""
@@ -94,7 +80,7 @@ class DeskbeeTokenExpirySensor(SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        return _decode_jwt_expiry(self._token)
+        return decode_jwt_expiry(self._token)
 
 
 class DeskbeeTokenValidSensor(SensorEntity):
@@ -107,7 +93,7 @@ class DeskbeeTokenValidSensor(SensorEntity):
 
     @property
     def native_value(self) -> str:
-        expiry = _decode_jwt_expiry(self._token)
+        expiry = decode_jwt_expiry(self._token)
         if expiry is None:
             return "invalid"
         return "valid" if datetime.now(tz=timezone.utc) < expiry else "invalid"
