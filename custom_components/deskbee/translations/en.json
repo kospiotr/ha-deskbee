@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Deskbee",
+        "data": {
+          "domain": "Domain",
+          "access_token": "Access Token"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage Booking Templates",
+        "menu_options": {
+          "add_booking": "Add booking template",
+          "remove_booking": "Remove booking template"
+        }
+      },
+      "add_booking": {
+        "title": "Add Booking Template",
+        "data": {
+          "name": "Name",
+          "start_time": "Start Time",
+          "end_time": "End Time",
+          "place_uuids": "Place UUIDs (comma-separated)"
+        },
+        "data_description": {
+          "place_uuids": "Enter one or more place UUIDs separated by commas. They will be tried in order until one succeeds."
+        }
+      },
+      "remove_booking": {
+        "title": "Remove Booking Template",
+        "data": {
+          "name": "Booking to remove"
+        }
+      }
+    }
+  }
+}

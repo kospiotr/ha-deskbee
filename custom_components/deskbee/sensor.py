@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
@@ -12,8 +12,9 @@ from homeassistant.const import CONF_ACCESS_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
-from .const import CONF_DOMAIN, DOMAIN
+from .const import CONF_BOOKINGS, CONF_DOMAIN, DOMAIN
 from .coordinator import DeskbeeCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,24 +29,30 @@ async def async_setup_entry(
     domain = entry.data[CONF_DOMAIN]
     token = entry.data[CONF_ACCESS_TOKEN]
     coordinator: DeskbeeCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            DeskbeeTokenExpirySensor(entry.entry_id, domain, token),
-            DeskbeeTokenValidSensor(entry.entry_id, domain, token),
-            DeskbeeReservationsSensor(entry.entry_id, domain, coordinator),
-        ]
-    )
+
+    entities: list[SensorEntity] = [
+        DeskbeeTokenExpirySensor(entry.entry_id, domain, token),
+        DeskbeeTokenValidSensor(entry.entry_id, domain, token),
+        DeskbeeReservationsSensor(entry.entry_id, domain, coordinator),
+    ]
+
+    for booking in entry.options.get(CONF_BOOKINGS, []):
+        for when in ("today", "tomorrow", "other"):
+            entities.append(
+                DeskbeeBookingSensor(entry.entry_id, booking, coordinator, when)
+            )
+
+    async_add_entities(entities)
 
 
 # ---------------------------------------------------------------------------
-# JWT helpers
+# Shared helpers
 # ---------------------------------------------------------------------------
 
 def _decode_jwt_expiry(token: str) -> datetime | None:
-    """Return the exp claim from a JWT as an aware UTC datetime, without verifying the signature."""
+    """Return the exp claim from a JWT as an aware UTC datetime."""
     try:
         payload_b64 = token.split(".")[1]
-        # JWT uses base64url without padding — restore it before decoding.
         payload_b64 += "=" * (-len(payload_b64) % 4)
         payload = json.loads(base64.urlsafe_b64decode(payload_b64))
         return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
@@ -54,8 +61,25 @@ def _decode_jwt_expiry(token: str) -> datetime | None:
         return None
 
 
+def _reservation_local_date(r: dict) -> date:
+    """Parse the local date from a reservation's start_date field."""
+    return datetime.fromisoformat(r["start_date"]).date()
+
+
+def _reservation_summary(r: dict) -> dict[str, Any]:
+    return {
+        "uuid": r["uuid"],
+        "start_date": r["start_date"],
+        "end_date": r["end_date"],
+        "place_type": r.get("place_type"),
+        "place": r["place"]["name_display"],
+        "area": r["place"]["area_full"],
+        "status": r["status"]["name"],
+    }
+
+
 # ---------------------------------------------------------------------------
-# Token sensors (static — derived from the JWT in config entry data)
+# Token sensors
 # ---------------------------------------------------------------------------
 
 class DeskbeeTokenExpirySensor(SensorEntity):
@@ -70,7 +94,6 @@ class DeskbeeTokenExpirySensor(SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the token expiry as a UTC datetime."""
         return _decode_jwt_expiry(self._token)
 
 
@@ -84,7 +107,6 @@ class DeskbeeTokenValidSensor(SensorEntity):
 
     @property
     def native_value(self) -> str:
-        """Return 'valid' if the token has not expired, 'invalid' otherwise."""
         expiry = _decode_jwt_expiry(self._token)
         if expiry is None:
             return "invalid"
@@ -92,11 +114,11 @@ class DeskbeeTokenValidSensor(SensorEntity):
 
 
 # ---------------------------------------------------------------------------
-# Reservations sensor (live — backed by the coordinator)
+# Live reservations sensor (all upcoming)
 # ---------------------------------------------------------------------------
 
 class DeskbeeReservationsSensor(CoordinatorEntity[DeskbeeCoordinator], SensorEntity):
-    """Sensor exposing the count and details of upcoming Deskbee reservations."""
+    """Sensor exposing the count and details of all upcoming reservations."""
 
     def __init__(
         self, entry_id: str, domain: str, coordinator: DeskbeeCoordinator
@@ -107,23 +129,64 @@ class DeskbeeReservationsSensor(CoordinatorEntity[DeskbeeCoordinator], SensorEnt
 
     @property
     def native_value(self) -> int:
-        """Return the number of reservations."""
         return len(self.coordinator.data or [])
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return each reservation's key fields as attributes."""
         return {
             "reservations": [
-                {
-                    "uuid": r["uuid"],
-                    "start_date": r["start_date"],
-                    "end_date": r["end_date"],
-                    "place_type": r.get("place_type"),
-                    "place": r["place"]["name_display"],
-                    "area": r["place"]["area_full"],
-                    "status": r["status"]["name"],
-                }
-                for r in (self.coordinator.data or [])
+                _reservation_summary(r) for r in (self.coordinator.data or [])
             ]
         }
+
+
+# ---------------------------------------------------------------------------
+# Booking template sensors (today / tomorrow / other)
+# ---------------------------------------------------------------------------
+
+class DeskbeeBookingSensor(CoordinatorEntity[DeskbeeCoordinator], SensorEntity):
+    """Counts reservations for a predefined booking template in a time window.
+
+    when='today'    → reservations whose start_date is today
+    when='tomorrow' → reservations whose start_date is tomorrow
+    when='other'    → reservations whose start_date is the day after tomorrow or later
+    """
+
+    def __init__(
+        self,
+        entry_id: str,
+        booking: dict,
+        coordinator: DeskbeeCoordinator,
+        when: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._booking = booking
+        self._when = when
+        slug = slugify(booking["name"])
+        self._attr_name = f"{booking['name']} Reservations {when.capitalize()}"
+        self._attr_unique_id = f"{entry_id}_{slug}_reservations_{when}"
+
+    def _matching(self) -> list[dict]:
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+
+        def _date_ok(d: date) -> bool:
+            if self._when == "today":
+                return d == today
+            if self._when == "tomorrow":
+                return d == tomorrow
+            return d > tomorrow  # "other"
+
+        return [
+            r for r in (self.coordinator.data or [])
+            if r["place"]["uuid"] in self._booking["place_uuids"]
+            and _date_ok(_reservation_local_date(r))
+        ]
+
+    @property
+    def native_value(self) -> int:
+        return len(self._matching())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"reservations": [_reservation_summary(r) for r in self._matching()]}
