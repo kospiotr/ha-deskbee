@@ -34,7 +34,12 @@ async def async_setup_entry(
         DeskbeeReservationsSensor(entry.entry_id, domain, coordinator),
     ]
 
-    for booking in entry.options.get(CONF_BOOKINGS, []):
+    subentry_bookings = [s.data for s in entry.subentries.values()]
+    legacy_bookings = [
+        b for b in entry.options.get(CONF_BOOKINGS, [])
+        if not any(s["name"] == b["name"] for s in subentry_bookings)
+    ]
+    for booking in subentry_bookings + legacy_bookings:
         for when in ("today", "tomorrow", "other"):
             entities.append(
                 DeskbeeBookingSensor(entry.entry_id, booking, coordinator, when)

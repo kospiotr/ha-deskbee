@@ -17,6 +17,7 @@ from .coordinator import DeskbeeCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_CREATE_RESERVATION = "create_reservation"
+SERVICE_BOOK_TEMPLATE = "book_template"
 
 _SERVICE_SCHEMA = vol.Schema(
     {
@@ -97,9 +98,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # ── Per-booking template services ──
     booking_service_names: list[str] = []
 
-    for booking in entry.options.get(CONF_BOOKINGS, []):
+    subentry_bookings = [s.data for s in entry.subentries.values()]
+    legacy_bookings = [
+        b for b in entry.options.get(CONF_BOOKINGS, [])
+        if not any(s["name"] == b["name"] for s in subentry_bookings)
+    ]
+    for booking in subentry_bookings + legacy_bookings:
         slug = slugify(booking["name"])
 
+        # ── {slug}_book_today / {slug}_book_tomorrow ──────────────────────
         for label, delta in [("today", 0), ("tomorrow", 1)]:
             svc_name = f"{slug}_book_{label}"
 
@@ -139,9 +146,64 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.services.async_register(DOMAIN, svc_name, _handle_book)
             booking_service_names.append(svc_name)
 
+        # ── {slug}_book  (custom date + optional time overrides) ──────────
+        _book_schema = vol.Schema(
+            {
+                vol.Required("date"): cv.date,
+                vol.Optional("start_time"): cv.time,
+                vol.Optional("end_time"): cv.time,
+            }
+        )
+
+        async def _handle_book_date(
+            call: ServiceCall,
+            _b: dict = booking,
+        ) -> None:
+            coord: DeskbeeCoordinator = hass.data[DOMAIN][entry.entry_id]
+            target: date = call.data["date"]
+            date_str = target.strftime("%d/%m/%Y")
+            start_hour = (
+                call.data["start_time"].strftime("%H:%M")
+                if "start_time" in call.data
+                else _format_time(_b["start_time"])
+            )
+            end_hour = (
+                call.data["end_time"].strftime("%H:%M")
+                if "end_time" in call.data
+                else _format_time(_b["end_time"])
+            )
+
+            for place_uuid in _b["place_uuids"]:
+                try:
+                    await coord.async_create_reservation(
+                        place_uuid=place_uuid,
+                        start_date=date_str,
+                        start_hour=start_hour,
+                        end_date=date_str,
+                        end_hour=end_hour,
+                    )
+                    _LOGGER.info(
+                        "Booking '%s' created for %s on %s",
+                        _b["name"], place_uuid, target,
+                    )
+                    break
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Booking '%s' failed for %s: %s", _b["name"], place_uuid, err
+                    )
+            else:
+                raise HomeAssistantError(
+                    f"All places failed for booking '{_b['name']}'"
+                )
+            await coord.async_request_refresh()
+
+        svc_name = f"{slug}_book"
+        hass.services.async_register(DOMAIN, svc_name, _handle_book_date, schema=_book_schema)
+        booking_service_names.append(svc_name)
+
     hass.data[DOMAIN].setdefault("_booking_services", {})[entry.entry_id] = booking_service_names
 
-    # Reload entry whenever options change (new/removed booking templates).
+    # Reload on options changes (legacy) and HA also reloads on subentry changes.
     entry.add_update_listener(_async_update_listener)
 
     return True
