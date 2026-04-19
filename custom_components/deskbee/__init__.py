@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import slugify
 
-from .const import CONF_DOMAIN, DOMAIN
+from .const import CONF_BOOKINGS, CONF_DOMAIN, DOMAIN
 from .coordinator import DeskbeeCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -94,11 +94,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=_SERVICE_SCHEMA,
         )
 
-    # ── Per-booking template services (one sub-entry = one booking template) ──
+    # ── Per-booking template services ──
     booking_service_names: list[str] = []
 
-    for subentry in entry.subentries.values():
-        booking = dict(subentry.data)
+    for booking in entry.options.get(CONF_BOOKINGS, []):
         slug = slugify(booking["name"])
 
         for label, delta in [("today", 0), ("tomorrow", 1)]:
