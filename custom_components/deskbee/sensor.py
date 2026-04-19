@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
-from .const import CONF_BOOKINGS, CONF_DOMAIN, DOMAIN
+from .const import CONF_DOMAIN, DOMAIN
 from .coordinator import DeskbeeCoordinator, decode_jwt_expiry
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +34,8 @@ async def async_setup_entry(
         DeskbeeReservationsSensor(entry.entry_id, domain, coordinator),
     ]
 
-    for booking in entry.options.get(CONF_BOOKINGS, []):
+    for subentry in entry.subentries.values():
+        booking = dict(subentry.data)
         for when in ("today", "tomorrow", "other"):
             entities.append(
                 DeskbeeBookingSensor(entry.entry_id, booking, coordinator, when)

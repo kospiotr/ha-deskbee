@@ -18,57 +18,36 @@
       }
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Booking Templates",
-        "description": "Configured templates:\n\n{bookings_list}",
-        "menu_options": {
-          "add_booking": "Add booking template",
-          "select_booking": "Edit or delete a template"
-        }
+  "subentry": {
+    "booking": {
+      "initiate_flow": {
+        "user": "Add booking template"
       },
-      "add_booking": {
-        "title": "Add Booking Template",
-        "data": {
-          "name": "Name",
-          "start_time": "Start Time",
-          "end_time": "End Time",
-          "place_uuids": "Place UUIDs (comma-separated)"
+      "step": {
+        "user": {
+          "title": "Add Booking Template",
+          "data": {
+            "name": "Name",
+            "start_time": "Start Time",
+            "end_time": "End Time",
+            "place_uuids": "Place UUIDs (comma-separated)"
+          },
+          "data_description": {
+            "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
+          }
         },
-        "data_description": {
-          "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
+        "reconfigure": {
+          "title": "Edit Booking Template",
+          "data": {
+            "name": "Name",
+            "start_time": "Start Time",
+            "end_time": "End Time",
+            "place_uuids": "Place UUIDs (comma-separated)"
+          },
+          "data_description": {
+            "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
+          }
         }
-      },
-      "select_booking": {
-        "title": "Select Booking Template",
-        "data": {
-          "name": "Booking template"
-        }
-      },
-      "booking_menu": {
-        "title": "{name}",
-        "description": "Start: {start_time}  ·  End: {end_time}\nPlaces: {place_uuids}",
-        "menu_options": {
-          "edit_booking": "Edit",
-          "delete_booking": "Delete"
-        }
-      },
-      "edit_booking": {
-        "title": "Edit Booking Template",
-        "data": {
-          "name": "Name",
-          "start_time": "Start Time",
-          "end_time": "End Time",
-          "place_uuids": "Place UUIDs (comma-separated)"
-        },
-        "data_description": {
-          "place_uuids": "Enter one or more place UUIDs separated by commas. They are tried in order until one succeeds."
-        }
-      },
-      "delete_booking": {
-        "title": "Delete Booking Template",
-        "description": "Are you sure you want to delete \"{name}\"? This will also remove its sensors and actions."
       }
     }
   }
