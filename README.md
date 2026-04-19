@@ -67,3 +67,9 @@ Steps on the Home Assistant host:
 
 3. After the script finishes, a `deskbee` directory will be present in the current folder.
 4. Restart Home Assistant and add the "Deskbee" integration via the UI.
+
+# Example configuration
+
+domain: gft
+token: eyJ0eXAi...
+token can be found in the: Local Storage -> Domain -> desko-app-token
