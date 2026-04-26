@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -199,6 +199,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         svc_name = f"{slug}_book"
         hass.services.async_register(DOMAIN, svc_name, _handle_book_date, schema=_book_schema)
+        booking_service_names.append(svc_name)
+
+        # ── {slug}_checkin_today ──────────────────────────────────────────
+        async def _handle_checkin_today(
+            call: ServiceCall,
+            _b: dict = booking,
+        ) -> None:
+            coord: DeskbeeCoordinator = hass.data[DOMAIN][entry.entry_id]
+            today = date.today()
+            today_reservations = [
+                r for r in (coord.data or [])
+                if r.get("start_date")
+                and datetime.fromisoformat(r["start_date"]).date() == today
+                and r["place"]["uuid"] in _b["place_uuids"]
+            ]
+
+            if not today_reservations:
+                _LOGGER.info("No reservations for '%s' today (%s)", _b["name"], today)
+                return
+
+            for r in today_reservations:
+                booking_uuid = r["uuid"]
+                place_uuid = r["place"]["uuid"]
+                try:
+                    await coord.async_checkin_reservation(
+                        place_uuid=place_uuid,
+                        booking_uuid=booking_uuid,
+                    )
+                    _LOGGER.info(
+                        "Checked in '%s' booking %s at place %s",
+                        _b["name"], booking_uuid, place_uuid,
+                    )
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Check-in failed for '%s' booking %s at place %s: %s",
+                        _b["name"], booking_uuid, place_uuid, err,
+                    )
+
+            await coord.async_request_refresh()
+
+        svc_name = f"{slug}_checkin_today"
+        hass.services.async_register(DOMAIN, svc_name, _handle_checkin_today)
         booking_service_names.append(svc_name)
 
     hass.data[DOMAIN].setdefault("_booking_services", {})[entry.entry_id] = booking_service_names

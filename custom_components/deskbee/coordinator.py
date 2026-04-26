@@ -16,6 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _BOOKINGS_URL = "https://api.deskbee.io/api/bookings/me"
 _CREATE_BOOKING_URL = "https://api.deskbee.io/api/bookings"
+_CHECKIN_URL = "https://api.deskbee.io/api/checkins"
 _BOOKINGS_PARAMS = {
     "page": "1",
     "limit": "10",
@@ -146,6 +147,31 @@ class DeskbeeCoordinator(DataUpdateCoordinator[list[dict]]):
         }
         async with session.post(
             _CREATE_BOOKING_URL, headers=headers, json=payload
+        ) as response:
+            response.raise_for_status()
+            return await response.json()
+
+    async def async_checkin_reservation(
+        self,
+        place_uuid: str,
+        booking_uuid: str,
+    ) -> dict:
+        """POST a check-in for an existing booking."""
+        session = async_get_clientsession(self.hass)
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {self._token}",
+            "content-type": "application/json",
+            "x-app-account": self._account,
+            "x-app-version": _APP_VERSION,
+        }
+        payload = {
+            "uuid": place_uuid,
+            "booking_uuid": booking_uuid,
+            "person_uuid": None,
+        }
+        async with session.post(
+            _CHECKIN_URL, headers=headers, json=payload
         ) as response:
             response.raise_for_status()
             return await response.json()
